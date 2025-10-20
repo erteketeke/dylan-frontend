@@ -115,7 +115,7 @@ const App = () => {
 
   const handleTrigger = async (triggerText, history) => {
     try {
-      const res = await axios.post('http://localhost:8000/generate_response', {
+      const res = await axios.post('https://dylan-backend.onrender.com/docs/generate_response', {
         conversation_history: history,
         trigger_text: triggerText,
       });
