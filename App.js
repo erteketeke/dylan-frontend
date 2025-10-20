@@ -77,7 +77,7 @@ const App = () => {
       };
 
       recognitionInstance.onresult = (e) => {
-        console.log('onresult triggered, results length:', e.results.length);
+        console.log('onresult triggered, results length:', e.results.length, 'isMobile:', isMobile);
         if (isSpeakingRef.current || isIgnoringResultsRef.current) {
           console.log('Ignoring results (speaking or ignoring)');
           return;
@@ -85,19 +85,41 @@ const App = () => {
         
         const localHistory = [...historyRef.current];
         
-        // Process all final results
-        for (let i = 0; i < e.results.length; i++) {
-          const result = e.results[i];
-          if (result.isFinal) {
-            const transcript = result[0].transcript;
-            console.log('Final transcript:', transcript);
-            localHistory.push(`Usuario: ${transcript}`);
+        // Different behavior for mobile vs desktop
+        if (isMobile) {
+          // Mobile: process all final results (each session is independent)
+          for (let i = 0; i < e.results.length; i++) {
+            const result = e.results[i];
+            if (result.isFinal) {
+              const transcript = result[0].transcript;
+              console.log('Final transcript (mobile):', transcript);
+              localHistory.push(`Usuario: ${transcript}`);
 
-            // Check for trigger phrase on each final result
-            if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
-              console.log('Dylan trigger detected');
-              setIsProcessing(true);
-              handleTrigger(transcript, [...localHistory]);
+              // Check for trigger phrase on each final result
+              if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
+                console.log('Dylan trigger detected');
+                setIsProcessing(true);
+                handleTrigger(transcript, [...localHistory]);
+              }
+            }
+          }
+        } else {
+          // Desktop: process only new results (continuous mode accumulates all results)
+          const startIndex = processedResultsRef.current;
+          for (let i = startIndex; i < e.results.length; i++) {
+            const result = e.results[i];
+            if (result.isFinal) {
+              const transcript = result[0].transcript;
+              console.log('Final transcript (desktop):', transcript);
+              localHistory.push(`Usuario: ${transcript}`);
+
+              // Check for trigger phrase on each final result
+              if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
+                console.log('Dylan trigger detected');
+                setIsProcessing(true);
+                handleTrigger(transcript, [...localHistory]);
+              }
+              processedResultsRef.current++;
             }
           }
         }
@@ -139,6 +161,11 @@ const App = () => {
     if (recognition) {
       console.log('startRecording called, isMobile:', isMobile);
       shouldBeRecordingRef.current = true;
+      
+      // Reset counter for desktop continuous mode
+      if (!isMobile) {
+        processedResultsRef.current = 0;
+      }
       
       try {
         recognition.start();
