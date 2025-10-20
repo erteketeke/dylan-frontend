@@ -5,6 +5,8 @@ import {
   TouchableOpacity,
   FlatList,
   StyleSheet,
+  ScrollView,
+  Modal,
 } from 'react-native';
 import { Speech } from 'expo-speech';
 import axios from 'axios';
@@ -22,6 +24,13 @@ const App = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [dylanProfile, setDylanProfile] = useState({
+    role: 'moderador',
+    responsibility: 'mediar',
+    character: 'neutral',
+    responseStyle: 'conciso'
+  });
   const historyRef = useRef([]);
   const processedResultsRef = useRef(0);
   const isSpeakingRef = useRef(false);
@@ -29,6 +38,12 @@ const App = () => {
   const voiceEnabledRef = useRef(false);
   const shouldBeRecordingRef = useRef(false);
   const recognitionRef = useRef(null);
+  const dylanProfileRef = useRef({
+    role: 'moderador',
+    responsibility: 'mediar',
+    character: 'neutral',
+    responseStyle: 'conciso'
+  });
   
   // Detect if we're on mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -210,11 +225,19 @@ const App = () => {
     }
   };
 
+  const updateDylanProfile = (newProfile) => {
+    setDylanProfile(newProfile);
+    dylanProfileRef.current = newProfile;
+    console.log('Dylan profile updated:', newProfile);
+  };
+
   const handleTrigger = async (triggerText, history) => {
     try {
-      const res = await axios.post('https://dylan-backend.onrender.com/generate_response', {
+      console.log('Dylan profile being sent:', dylanProfileRef.current);
+      const res = await axios.post('http://localhost:8000/generate_response', {
         conversation_history: history,
         trigger_text: triggerText,
+        dylan_profile: dylanProfileRef.current,
       });
 
       const dylanResponse = res.data.response;
@@ -337,16 +360,53 @@ const App = () => {
     );
   };
 
+  const ProfileOption = ({ icon, label, options, selectedValue, onSelect }) => (
+    <View style={styles.profileSection}>
+      <View style={styles.profileHeader}>
+        <Ionicons name={icon} size={20} color="#00D9FF" />
+        <Text style={styles.profileLabel}>{label}</Text>
+      </View>
+      <View style={styles.optionsContainer}>
+        {options.map((option) => (
+          <TouchableOpacity
+            key={option.value}
+            style={[
+              styles.optionButton,
+              selectedValue === option.value && styles.optionButtonSelected
+            ]}
+            onPress={() => onSelect(option.value)}
+          >
+            <Text style={[
+              styles.optionText,
+              selectedValue === option.value && styles.optionTextSelected
+            ]}>
+              {option.label}
+            </Text>
+            {option.description && (
+              <Text style={styles.optionDescription}>{option.description}</Text>
+            )}
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.logoContainer}>
           <Ionicons name="hardware-chip" size={36} color="#00D9FF" />
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.title}>DYLAN</Text>
           <Text style={styles.subtitle}>AI Assistant</Text>
         </View>
+        <TouchableOpacity
+          style={styles.configButton}
+          onPress={() => setShowConfigModal(true)}
+        >
+          <Ionicons name="settings-outline" size={28} color="#00D9FF" />
+        </TouchableOpacity>
       </View>
       
       <View style={styles.controlPanel}>
@@ -375,6 +435,91 @@ const App = () => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Configuration Modal */}
+      <Modal
+        visible={showConfigModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowConfigModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Configurar Perfil de Dylan</Text>
+              <TouchableOpacity onPress={() => setShowConfigModal(false)}>
+                <Ionicons name="close-circle" size={32} color="#00D9FF" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalContent}>
+              <ProfileOption
+                icon="briefcase-outline"
+                label="¿Quién es Dylan?"
+                options={[
+                  { value: 'abogado', label: 'Abogado', description: 'Experto en leyes y normativas' },
+                  { value: 'arquitecto', label: 'Arquitecto de Software', description: 'Experto en diseño y desarrollo' },
+                  { value: 'moderador', label: 'Moderador', description: 'Facilita la conversación' },
+                  { value: 'consultor', label: 'Consultor Empresarial', description: 'Asesor estratégico' },
+                  { value: 'profesor', label: 'Profesor', description: 'Educador y guía de aprendizaje' },
+                  { value: 'general', label: 'Asistente General', description: 'Conocimientos amplios' }
+                ]}
+                selectedValue={dylanProfile.role}
+                onSelect={(value) => updateDylanProfile({ ...dylanProfile, role: value })}
+              />
+
+              <ProfileOption
+                icon="flag-outline"
+                label="Su papel en la conversación"
+                options={[
+                  { value: 'mediar', label: 'Mediar', description: 'Encuentra puntos en común' },
+                  { value: 'asesorar', label: 'Asesorar', description: 'Da recomendaciones expertas' },
+                  { value: 'resolver', label: 'Resolver', description: 'Proporciona soluciones definitivas' },
+                  { value: 'enseñar', label: 'Enseñar', description: 'Explica y educa' },
+                  { value: 'analizar', label: 'Analizar', description: 'Evalúa pros y contras' }
+                ]}
+                selectedValue={dylanProfile.responsibility}
+                onSelect={(value) => updateDylanProfile({ ...dylanProfile, responsibility: value })}
+              />
+
+              <ProfileOption
+                icon="heart-outline"
+                label="Su carácter"
+                options={[
+                  { value: 'neutral', label: 'Neutral', description: 'Objetivo e imparcial' },
+                  { value: 'amigable', label: 'Amigable', description: 'Cercano y empático' },
+                  { value: 'profesional', label: 'Profesional', description: 'Formal y técnico' },
+                  { value: 'directo', label: 'Directo', description: 'Sin rodeos, al grano' },
+                  { value: 'socratico', label: 'Socrático', description: 'Hace preguntas para reflexionar' }
+                ]}
+                selectedValue={dylanProfile.character}
+                onSelect={(value) => updateDylanProfile({ ...dylanProfile, character: value })}
+              />
+
+              <ProfileOption
+                icon="chatbox-outline"
+                label="Estilo de respuesta"
+                options={[
+                  { value: 'conciso', label: 'Conciso', description: '3-4 oraciones breves' },
+                  { value: 'detallado', label: 'Detallado', description: 'Explicaciones completas' },
+                  { value: 'escueto', label: 'Escueto', description: '1-2 oraciones directas' },
+                  { value: 'estructurado', label: 'Estructurado', description: 'Con puntos numerados' }
+                ]}
+                selectedValue={dylanProfile.responseStyle}
+                onSelect={(value) => updateDylanProfile({ ...dylanProfile, responseStyle: value })}
+              />
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={() => setShowConfigModal(false)}
+              >
+                <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
+                <Text style={styles.saveButtonText}>Guardar Configuración</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
       
       {isProcessing && (
         <View style={styles.processingContainer}>
@@ -570,6 +715,108 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     color: '#E8E8E8',
+  },
+  configButton: {
+    padding: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer: {
+    width: '90%',
+    maxHeight: '85%',
+    backgroundColor: '#0F1729',
+    borderRadius: 20,
+    borderWidth: 2,
+    borderColor: '#00D9FF',
+    shadowColor: '#00D9FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1A1F35',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    letterSpacing: 1,
+  },
+  modalContent: {
+    padding: 20,
+  },
+  profileSection: {
+    marginBottom: 25,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  profileLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginLeft: 8,
+    letterSpacing: 0.5,
+  },
+  optionsContainer: {
+    gap: 10,
+  },
+  optionButton: {
+    backgroundColor: '#0F1F2E',
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1A2F4F',
+  },
+  optionButtonSelected: {
+    backgroundColor: '#0D3B2F',
+    borderColor: '#00D9FF',
+    borderWidth: 2,
+  },
+  optionText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#B8B8B8',
+    marginBottom: 2,
+  },
+  optionTextSelected: {
+    color: '#FFFFFF',
+  },
+  optionDescription: {
+    fontSize: 12,
+    color: '#7A7A8A',
+    marginTop: 3,
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0D3B2F',
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#00D9FF',
+    marginTop: 10,
+    marginBottom: 20,
+  },
+  saveButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+    letterSpacing: 1,
   },
 });
 
