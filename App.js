@@ -28,35 +28,51 @@ const App = () => {
   const isIgnoringResultsRef = useRef(false);
   const voiceEnabledRef = useRef(false);
   const shouldBeRecordingRef = useRef(false);
+  const recognitionRef = useRef(null);
+  
+  // Detect if we're on mobile
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
   useEffect(() => {
     if (SpeechRecognition) {
       const recognitionInstance = new SpeechRecognition();
-      recognitionInstance.continuous = true;
+      // On mobile, continuous doesn't work well, so we'll handle restarts manually
+      recognitionInstance.continuous = !isMobile;
       recognitionInstance.interimResults = false;
       recognitionInstance.lang = 'es-ES';
+      
+      recognitionRef.current = recognitionInstance;
 
       recognitionInstance.onstart = () => {
-        console.log('Speech started');
+        console.log('Speech started (mobile:', isMobile, ')');
         setIsRecording(true);
       };
 
       recognitionInstance.onend = () => {
-        console.log('Speech ended, shouldBeRecording:', shouldBeRecordingRef.current);
+        console.log('Speech ended, shouldBeRecording:', shouldBeRecordingRef.current, 'isMobile:', isMobile);
         setIsRecording(false);
         
-        // Restart recognition if user wants to keep recording
-        // and we're not speaking or ignoring results
+        // On mobile, we need to restart after each phrase
+        // On desktop with continuous mode, this shouldn't happen unless stopped manually
         if (shouldBeRecordingRef.current && !isSpeakingRef.current && !isIgnoringResultsRef.current) {
-          console.log('Restarting recognition automatically');
+          console.log('Attempting to restart recognition...');
           setTimeout(() => {
             try {
               recognitionInstance.start();
               console.log('Recognition restarted successfully');
             } catch (e) {
               console.error('Error restarting recognition:', e);
+              // If it fails, try one more time after a longer delay
+              setTimeout(() => {
+                try {
+                  recognitionInstance.start();
+                  console.log('Recognition restarted on second attempt');
+                } catch (e2) {
+                  console.error('Failed to restart on second attempt:', e2);
+                }
+              }, 500);
             }
-          }, 100);
+          }, isMobile ? 200 : 100);
         }
       };
 
@@ -83,32 +99,51 @@ const App = () => {
       };
 
       recognitionInstance.onerror = (e) => {
-        console.error('Speech error:', e);
+        console.error('Speech error:', e.error, e);
+        
+        // Handle specific mobile errors
+        if (e.error === 'aborted' || e.error === 'no-speech') {
+          console.log('Recognition aborted or no speech detected');
+          // Don't try to restart on these errors
+        } else if (e.error === 'not-allowed') {
+          console.error('Microphone permission denied');
+          alert('Por favor, permite el acceso al micrófono');
+          shouldBeRecordingRef.current = false;
+          setIsRecording(false);
+        }
       };
 
       setRecognition(recognitionInstance);
     }
 
-
-
     return () => {
-      if (recognition) {
-        recognition.abort();
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          console.error('Error stopping recognition on cleanup:', e);
+        }
       }
     };
   }, []);
 
   const startRecording = () => {
     if (recognition) {
+      console.log('startRecording called, isMobile:', isMobile);
       shouldBeRecordingRef.current = true;
+      
+      // Reset processed results counter
+      processedResultsRef.current = 0;
+      
       try {
         recognition.start();
-        console.log('Recording started');
+        console.log('Recording started successfully');
       } catch (e) {
-        console.error('Error starting recording:', e);
+        console.error('Error starting recording:', e.message);
         // If error is "already started", it means we're already recording
         if (e.message && e.message.includes('already started')) {
           console.log('Recognition already started, continuing...');
+          setIsRecording(true);
         } else {
           // For other errors, try to reset
           console.log('Attempting to reset recognition...');
@@ -117,10 +152,12 @@ const App = () => {
             setTimeout(() => {
               try {
                 recognition.start();
+                console.log('Recognition started after reset');
               } catch (restartError) {
                 console.error('Failed to restart:', restartError);
+                alert('Error al iniciar el reconocimiento de voz. Por favor, recarga la página.');
               }
-            }, 300);
+            }, 500);
           } catch (stopError) {
             console.error('Failed to stop and reset:', stopError);
           }
