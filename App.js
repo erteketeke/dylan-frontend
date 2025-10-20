@@ -27,6 +27,7 @@ const App = () => {
   const isSpeakingRef = useRef(false);
   const isIgnoringResultsRef = useRef(false);
   const voiceEnabledRef = useRef(false);
+  const shouldBeRecordingRef = useRef(false);
 
   useEffect(() => {
     if (SpeechRecognition) {
@@ -41,8 +42,22 @@ const App = () => {
       };
 
       recognitionInstance.onend = () => {
-        console.log('Speech ended');
+        console.log('Speech ended, shouldBeRecording:', shouldBeRecordingRef.current);
         setIsRecording(false);
+        
+        // Restart recognition if user wants to keep recording
+        // and we're not speaking or ignoring results
+        if (shouldBeRecordingRef.current && !isSpeakingRef.current && !isIgnoringResultsRef.current) {
+          console.log('Restarting recognition automatically');
+          setTimeout(() => {
+            try {
+              recognitionInstance.start();
+              console.log('Recognition restarted successfully');
+            } catch (e) {
+              console.error('Error restarting recognition:', e);
+            }
+          }, 100);
+        }
       };
 
       recognitionInstance.onresult = (e) => {
@@ -85,19 +100,30 @@ const App = () => {
 
   const startRecording = () => {
     if (recognition) {
+      shouldBeRecordingRef.current = true;
       try {
-        // Check if already recording to avoid error
-        if (!isRecording) {
-          recognition.start();
-          console.log('Recording started');
-        } else {
-          console.log('Already recording, skipping start');
-        }
+        recognition.start();
+        console.log('Recording started');
       } catch (e) {
         console.error('Error starting recording:', e);
-        // If error is "already started", just continue
+        // If error is "already started", it means we're already recording
         if (e.message && e.message.includes('already started')) {
           console.log('Recognition already started, continuing...');
+        } else {
+          // For other errors, try to reset
+          console.log('Attempting to reset recognition...');
+          try {
+            recognition.stop();
+            setTimeout(() => {
+              try {
+                recognition.start();
+              } catch (restartError) {
+                console.error('Failed to restart:', restartError);
+              }
+            }, 300);
+          } catch (stopError) {
+            console.error('Failed to stop and reset:', stopError);
+          }
         }
       }
     }
@@ -105,10 +131,12 @@ const App = () => {
 
   const stopRecording = () => {
     if (recognition) {
+      shouldBeRecordingRef.current = false;
       try {
-        recognition.abort();
+        recognition.stop();
+        console.log('Recording stopped');
       } catch (e) {
-        console.error('Error aborting recording:', e);
+        console.error('Error stopping recording:', e);
       }
     }
   };
@@ -129,7 +157,8 @@ const App = () => {
       
       if (voiceEnabledRef.current) {
         console.log('Starting voice response...');
-        // Stop recording while speaking
+        // Temporarily stop recording while speaking
+        const wasRecording = shouldBeRecordingRef.current;
         if (recognition && isRecording) {
           recognition.stop();
         }
@@ -146,15 +175,15 @@ const App = () => {
           isIgnoringResultsRef.current = true;
           setTimeout(() => {
             isIgnoringResultsRef.current = false;
-            console.log('Restarting recording after speech...');
+            console.log('Ready to resume recording...');
           }, 1000);
           
-          // Restart recording after speaking
-          if (recognition) {
+          // Restart recording after speaking only if user wanted to record
+          if (recognition && wasRecording) {
             setTimeout(() => {
               try {
                 recognition.start();
-                console.log('Recording restarted successfully');
+                console.log('Recording restarted after speech');
               } catch (e) {
                 console.error('Error restarting recording:', e);
               }
@@ -163,12 +192,8 @@ const App = () => {
         });
       } else {
         console.log('Voice disabled, skipping speech');
-        // Voice disabled, just finish processing and continue recording
+        // Voice disabled, just finish processing
         setIsProcessing(false);
-        // Continue recording if it was active
-        if (recognition && isRecording) {
-          console.log('Continuing recording (voice disabled)');
-        }
       }
     } catch (error) {
       console.error('Error calling backend:', error);
