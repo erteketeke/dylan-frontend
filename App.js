@@ -77,23 +77,31 @@ const App = () => {
       };
 
       recognitionInstance.onresult = (e) => {
-        if (isSpeakingRef.current || isIgnoringResultsRef.current) return;
+        console.log('onresult triggered, results length:', e.results.length);
+        if (isSpeakingRef.current || isIgnoringResultsRef.current) {
+          console.log('Ignoring results (speaking or ignoring)');
+          return;
+        }
+        
         const localHistory = [...historyRef.current];
-        const startIndex = processedResultsRef.current;
+        
+        // Process all final results
         for (let i = 0; i < e.results.length; i++) {
           const result = e.results[i];
-          if (i >= startIndex && result.isFinal) {
+          if (result.isFinal) {
             const transcript = result[0].transcript;
+            console.log('Final transcript:', transcript);
             localHistory.push(`Usuario: ${transcript}`);
 
             // Check for trigger phrase on each final result
             if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
+              console.log('Dylan trigger detected');
               setIsProcessing(true);
               handleTrigger(transcript, [...localHistory]);
             }
-            processedResultsRef.current++;
           }
         }
+        
         setConversationHistory(localHistory);
         historyRef.current = localHistory;
       };
@@ -131,9 +139,6 @@ const App = () => {
     if (recognition) {
       console.log('startRecording called, isMobile:', isMobile);
       shouldBeRecordingRef.current = true;
-      
-      // Reset processed results counter
-      processedResultsRef.current = 0;
       
       try {
         recognition.start();
