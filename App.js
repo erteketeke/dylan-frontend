@@ -29,7 +29,8 @@ const App = () => {
     role: 'moderador',
     responsibility: 'mediar',
     character: 'neutral',
-    responseStyle: 'conciso'
+    responseStyle: 'conciso',
+    language: 'es'
   });
   const historyRef = useRef([]);
   const processedResultsRef = useRef(0);
@@ -42,11 +43,136 @@ const App = () => {
     role: 'moderador',
     responsibility: 'mediar',
     character: 'neutral',
-    responseStyle: 'conciso'
+    responseStyle: 'conciso',
+    language: 'es'
   });
   
   // Detect if we're on mobile
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  // Language code mapping for speech recognition
+  const languageCodeMap = {
+    'es': 'es-ES',
+    'en': 'en-US',
+    'fr': 'fr-FR'
+  };
+
+  // UI Translations
+  const translations = {
+    es: {
+      title: 'DYLAN',
+      subtitle: 'Asistente IA',
+      stop: 'DETENER',
+      record: 'GRABAR',
+      voiceOn: 'VOZ ON',
+      voiceOff: 'VOZ OFF',
+      processing: 'Procesando...',
+      configTitle: 'Configurar Perfil de Dylan',
+      saveConfig: 'Guardar Configuración',
+      whoIsDylan: '¿Quién es Dylan?',
+      roleInConversation: 'Su papel en la conversación',
+      character: 'Su carácter',
+      responseStyle: 'Estilo de respuesta',
+      language: 'Idioma',
+      roles: {
+        moderador: { label: 'Moderador', desc: 'Facilita conversaciones y reuniones' },
+        general: { label: 'Asistente General', desc: 'Conocimientos amplios y versátiles' }
+      },
+      responsibilities: {
+        mediar: { label: 'Mediar', desc: 'Encuentra puntos en común y consenso' },
+        analizar: { label: 'Analizar', desc: 'Evalúa pros y contras de cada postura' }
+      },
+      characters: {
+        neutral: { label: 'Neutral', desc: 'Objetivo, imparcial y equilibrado' },
+        profesional: { label: 'Profesional', desc: 'Formal, técnico y orientado a resultados' }
+      },
+      styles: {
+        conciso: { label: 'Conciso', desc: 'Respuestas breves de 3-4 oraciones' },
+        detallado: { label: 'Detallado', desc: 'Explicaciones completas de 6-8 oraciones' }
+      },
+      languages: {
+        es: { label: 'Español', desc: 'Spanish' },
+        en: { label: 'Inglés', desc: 'English' },
+        fr: { label: 'Francés', desc: 'French' }
+      }
+    },
+    en: {
+      title: 'DYLAN',
+      subtitle: 'AI Assistant',
+      stop: 'STOP',
+      record: 'RECORD',
+      voiceOn: 'VOICE ON',
+      voiceOff: 'VOICE OFF',
+      processing: 'Processing...',
+      configTitle: 'Configure Dylan\'s Profile',
+      saveConfig: 'Save Configuration',
+      whoIsDylan: 'Who is Dylan?',
+      roleInConversation: 'Role in conversation',
+      character: 'Character',
+      responseStyle: 'Response style',
+      language: 'Language',
+      roles: {
+        moderador: { label: 'Moderator', desc: 'Facilitates conversations and meetings' },
+        general: { label: 'General Assistant', desc: 'Broad and versatile knowledge' }
+      },
+      responsibilities: {
+        mediar: { label: 'Mediate', desc: 'Finds common ground and consensus' },
+        analizar: { label: 'Analyze', desc: 'Evaluates pros and cons of each position' }
+      },
+      characters: {
+        neutral: { label: 'Neutral', desc: 'Objective, impartial and balanced' },
+        profesional: { label: 'Professional', desc: 'Formal, technical and results-oriented' }
+      },
+      styles: {
+        conciso: { label: 'Concise', desc: 'Brief responses of 3-4 sentences' },
+        detallado: { label: 'Detailed', desc: 'Complete explanations of 6-8 sentences' }
+      },
+      languages: {
+        es: { label: 'Spanish', desc: 'Español' },
+        en: { label: 'English', desc: 'English' },
+        fr: { label: 'French', desc: 'Français' }
+      }
+    },
+    fr: {
+      title: 'DYLAN',
+      subtitle: 'Assistant IA',
+      stop: 'ARRÊTER',
+      record: 'ENREGISTRER',
+      voiceOn: 'VOIX ON',
+      voiceOff: 'VOIX OFF',
+      processing: 'Traitement...',
+      configTitle: 'Configurer le Profil de Dylan',
+      saveConfig: 'Enregistrer la Configuration',
+      whoIsDylan: 'Qui est Dylan?',
+      roleInConversation: 'Son rôle dans la conversation',
+      character: 'Son caractère',
+      responseStyle: 'Style de réponse',
+      language: 'Langue',
+      roles: {
+        moderador: { label: 'Modérateur', desc: 'Facilite les conversations et réunions' },
+        general: { label: 'Assistant Général', desc: 'Connaissances larges et polyvalentes' }
+      },
+      responsibilities: {
+        mediar: { label: 'Médier', desc: 'Trouve un terrain d\'entente et un consensus' },
+        analizar: { label: 'Analyser', desc: 'Évalue les avantages et inconvénients de chaque position' }
+      },
+      characters: {
+        neutral: { label: 'Neutre', desc: 'Objectif, impartial et équilibré' },
+        profesional: { label: 'Professionnel', desc: 'Formel, technique et orienté résultats' }
+      },
+      styles: {
+        conciso: { label: 'Concis', desc: 'Réponses brèves de 3-4 phrases' },
+        detallado: { label: 'Détaillé', desc: 'Explications complètes de 6-8 phrases' }
+      },
+      languages: {
+        es: { label: 'Espagnol', desc: 'Español' },
+        en: { label: 'Anglais', desc: 'English' },
+        fr: { label: 'Français', desc: 'Français' }
+      }
+    }
+  };
+
+  const t = translations[dylanProfile.language] || translations['es'];
 
   useEffect(() => {
     if (SpeechRecognition) {
@@ -54,7 +180,7 @@ const App = () => {
       // On mobile, continuous doesn't work well, so we'll handle restarts manually
       recognitionInstance.continuous = !isMobile;
       recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'es-ES';
+      recognitionInstance.lang = languageCodeMap[dylanProfile.language] || 'es-ES';
       
       recognitionRef.current = recognitionInstance;
 
@@ -170,7 +296,7 @@ const App = () => {
         }
       }
     };
-  }, []);
+  }, [dylanProfile.language, isMobile]);  // Re-initialize when language changes
 
   const startRecording = () => {
     if (recognition) {
@@ -398,8 +524,8 @@ const App = () => {
           <Ionicons name="hardware-chip" size={36} color="#00D9FF" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>DYLAN</Text>
-          <Text style={styles.subtitle}>AI Assistant</Text>
+          <Text style={styles.title}>{t.title}</Text>
+          <Text style={styles.subtitle}>{t.subtitle}</Text>
         </View>
         <TouchableOpacity
           style={styles.configButton}
@@ -416,7 +542,7 @@ const App = () => {
         >
           <Ionicons name={isRecording ? 'stop-circle' : 'mic'} size={24} color="#FFFFFF" />
           <Text style={styles.buttonText}>
-            {isRecording ? 'DETENER' : 'GRABAR'}
+            {isRecording ? t.stop : t.record}
           </Text>
         </TouchableOpacity>
         
@@ -431,7 +557,7 @@ const App = () => {
         >
           <Ionicons name={voiceEnabled ? 'volume-high' : 'volume-mute'} size={24} color="#FFFFFF" />
           <Text style={styles.buttonText}>
-            {voiceEnabled ? 'VOZ ON' : 'VOZ OFF'}
+            {voiceEnabled ? t.voiceOn : t.voiceOff}
           </Text>
         </TouchableOpacity>
       </View>
@@ -446,7 +572,7 @@ const App = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Configurar Perfil de Dylan</Text>
+              <Text style={styles.modalTitle}>{t.configTitle}</Text>
               <TouchableOpacity onPress={() => setShowConfigModal(false)}>
                 <Ionicons name="close-circle" size={32} color="#00D9FF" />
               </TouchableOpacity>
@@ -454,15 +580,23 @@ const App = () => {
             
             <ScrollView style={styles.modalContent}>
               <ProfileOption
-                icon="briefcase-outline"
-                label="¿Quién es Dylan?"
+                icon="language-outline"
+                label={t.language}
                 options={[
-                  { value: 'abogado', label: 'Abogado', description: 'Experto en leyes y normativas' },
-                  { value: 'arquitecto', label: 'Arquitecto de Software', description: 'Experto en diseño y desarrollo' },
-                  { value: 'moderador', label: 'Moderador', description: 'Facilita la conversación' },
-                  { value: 'consultor', label: 'Consultor Empresarial', description: 'Asesor estratégico' },
-                  { value: 'profesor', label: 'Profesor', description: 'Educador y guía de aprendizaje' },
-                  { value: 'general', label: 'Asistente General', description: 'Conocimientos amplios' }
+                  { value: 'es', label: t.languages.es.label, description: t.languages.es.desc },
+                  { value: 'en', label: t.languages.en.label, description: t.languages.en.desc },
+                  { value: 'fr', label: t.languages.fr.label, description: t.languages.fr.desc }
+                ]}
+                selectedValue={dylanProfile.language}
+                onSelect={(value) => updateDylanProfile({ ...dylanProfile, language: value })}
+              />
+
+              <ProfileOption
+                icon="briefcase-outline"
+                label={t.whoIsDylan}
+                options={[
+                  { value: 'moderador', label: t.roles.moderador.label, description: t.roles.moderador.desc },
+                  { value: 'general', label: t.roles.general.label, description: t.roles.general.desc }
                 ]}
                 selectedValue={dylanProfile.role}
                 onSelect={(value) => updateDylanProfile({ ...dylanProfile, role: value })}
@@ -470,13 +604,10 @@ const App = () => {
 
               <ProfileOption
                 icon="flag-outline"
-                label="Su papel en la conversación"
+                label={t.roleInConversation}
                 options={[
-                  { value: 'mediar', label: 'Mediar', description: 'Encuentra puntos en común' },
-                  { value: 'asesorar', label: 'Asesorar', description: 'Da recomendaciones expertas' },
-                  { value: 'resolver', label: 'Resolver', description: 'Proporciona soluciones definitivas' },
-                  { value: 'enseñar', label: 'Enseñar', description: 'Explica y educa' },
-                  { value: 'analizar', label: 'Analizar', description: 'Evalúa pros y contras' }
+                  { value: 'mediar', label: t.responsibilities.mediar.label, description: t.responsibilities.mediar.desc },
+                  { value: 'analizar', label: t.responsibilities.analizar.label, description: t.responsibilities.analizar.desc }
                 ]}
                 selectedValue={dylanProfile.responsibility}
                 onSelect={(value) => updateDylanProfile({ ...dylanProfile, responsibility: value })}
@@ -484,13 +615,10 @@ const App = () => {
 
               <ProfileOption
                 icon="heart-outline"
-                label="Su carácter"
+                label={t.character}
                 options={[
-                  { value: 'neutral', label: 'Neutral', description: 'Objetivo e imparcial' },
-                  { value: 'amigable', label: 'Amigable', description: 'Cercano y empático' },
-                  { value: 'profesional', label: 'Profesional', description: 'Formal y técnico' },
-                  { value: 'directo', label: 'Directo', description: 'Sin rodeos, al grano' },
-                  { value: 'socratico', label: 'Socrático', description: 'Hace preguntas para reflexionar' }
+                  { value: 'neutral', label: t.characters.neutral.label, description: t.characters.neutral.desc },
+                  { value: 'profesional', label: t.characters.profesional.label, description: t.characters.profesional.desc }
                 ]}
                 selectedValue={dylanProfile.character}
                 onSelect={(value) => updateDylanProfile({ ...dylanProfile, character: value })}
@@ -498,12 +626,10 @@ const App = () => {
 
               <ProfileOption
                 icon="chatbox-outline"
-                label="Estilo de respuesta"
+                label={t.responseStyle}
                 options={[
-                  { value: 'conciso', label: 'Conciso', description: '3-4 oraciones breves' },
-                  { value: 'detallado', label: 'Detallado', description: 'Explicaciones completas' },
-                  { value: 'escueto', label: 'Escueto', description: '1-2 oraciones directas' },
-                  { value: 'estructurado', label: 'Estructurado', description: 'Con puntos numerados' }
+                  { value: 'conciso', label: t.styles.conciso.label, description: t.styles.conciso.desc },
+                  { value: 'detallado', label: t.styles.detallado.label, description: t.styles.detallado.desc }
                 ]}
                 selectedValue={dylanProfile.responseStyle}
                 onSelect={(value) => updateDylanProfile({ ...dylanProfile, responseStyle: value })}
@@ -514,7 +640,7 @@ const App = () => {
                 onPress={() => setShowConfigModal(false)}
               >
                 <Ionicons name="checkmark-circle" size={24} color="#FFFFFF" />
-                <Text style={styles.saveButtonText}>Guardar Configuración</Text>
+                <Text style={styles.saveButtonText}>{t.saveConfig}</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -524,7 +650,7 @@ const App = () => {
       {isProcessing && (
         <View style={styles.processingContainer}>
           <Ionicons name="sync" size={20} color="#00D9FF" />
-          <Text style={styles.processingText}>Procesando...</Text>
+          <Text style={styles.processingText}>{t.processing}</Text>
         </View>
       )}
       <FlatList
