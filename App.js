@@ -30,7 +30,8 @@ const App = () => {
     responsibility: 'mediar',
     character: 'neutral',
     responseStyle: 'conciso',
-    language: 'es'
+    language: 'es',
+    sensitivity: 'medium'
   });
   const historyRef = useRef([]);
   const processedResultsRef = useRef(0);
@@ -44,7 +45,8 @@ const App = () => {
     responsibility: 'mediar',
     character: 'neutral',
     responseStyle: 'conciso',
-    language: 'es'
+    language: 'es',
+    sensitivity: 'medium'
   });
   
   // Detect if we're on mobile
@@ -76,12 +78,19 @@ const App = () => {
       language: 'Idioma',
       roles: {
         moderador: { label: 'Moderador', desc: 'Facilita conversaciones y reuniones' },
-        general: { label: 'Asistente General', desc: 'Conocimientos amplios y versátiles' }
+        general: { label: 'Asistente General', desc: 'Conocimientos amplios y versátiles' },
+        fact_checker: { label: 'Verificador de Hechos', desc: 'Corrige información errónea automáticamente' }
       },
       responsibilities: {
         mediar: { label: 'Mediar', desc: 'Encuentra puntos en común y consenso' },
         analizar: { label: 'Analizar', desc: 'Evalúa pros y contras de cada postura' }
       },
+      sensitivities: {
+        high: { label: 'Alta', desc: 'Solo errores factuales graves' },
+        medium: { label: 'Media', desc: 'Errores y contradicciones importantes' },
+        low: { label: 'Baja', desc: 'Cualquier información cuestionable' }
+      },
+      sensitivityLabel: 'Sensibilidad',
       characters: {
         neutral: { label: 'Neutral', desc: 'Objetivo, imparcial y equilibrado' },
         profesional: { label: 'Profesional', desc: 'Formal, técnico y orientado a resultados' }
@@ -113,12 +122,19 @@ const App = () => {
       language: 'Language',
       roles: {
         moderador: { label: 'Moderator', desc: 'Facilitates conversations and meetings' },
-        general: { label: 'General Assistant', desc: 'Broad and versatile knowledge' }
+        general: { label: 'General Assistant', desc: 'Broad and versatile knowledge' },
+        fact_checker: { label: 'Fact-Checker', desc: 'Corrects erroneous information automatically' }
       },
       responsibilities: {
         mediar: { label: 'Mediate', desc: 'Finds common ground and consensus' },
         analizar: { label: 'Analyze', desc: 'Evaluates pros and cons of each position' }
       },
+      sensitivities: {
+        high: { label: 'High', desc: 'Only severe factual errors' },
+        medium: { label: 'Medium', desc: 'Errors and important contradictions' },
+        low: { label: 'Low', desc: 'Any questionable information' }
+      },
+      sensitivityLabel: 'Sensitivity',
       characters: {
         neutral: { label: 'Neutral', desc: 'Objective, impartial and balanced' },
         profesional: { label: 'Professional', desc: 'Formal, technical and results-oriented' }
@@ -150,12 +166,19 @@ const App = () => {
       language: 'Langue',
       roles: {
         moderador: { label: 'Modérateur', desc: 'Facilite les conversations et réunions' },
-        general: { label: 'Assistant Général', desc: 'Connaissances larges et polyvalentes' }
+        general: { label: 'Assistant Général', desc: 'Connaissances larges et polyvalentes' },
+        fact_checker: { label: 'Vérificateur de Faits', desc: 'Corrige automatiquement les informations erronées' }
       },
       responsibilities: {
         mediar: { label: 'Médier', desc: 'Trouve un terrain d\'entente et un consensus' },
         analizar: { label: 'Analyser', desc: 'Évalue les avantages et inconvénients de chaque position' }
       },
+      sensitivities: {
+        high: { label: 'Haute', desc: 'Seulement les erreurs factuelles graves' },
+        medium: { label: 'Moyenne', desc: 'Erreurs et contradictions importantes' },
+        low: { label: 'Basse', desc: 'Toute information questionnable' }
+      },
+      sensitivityLabel: 'Sensibilité',
       characters: {
         neutral: { label: 'Neutre', desc: 'Objectif, impartial et équilibré' },
         profesional: { label: 'Professionnel', desc: 'Formel, technique et orienté résultats' }
@@ -236,11 +259,20 @@ const App = () => {
               console.log('Final transcript (mobile):', transcript);
               localHistory.push(`Usuario: ${transcript}`);
 
-              // Check for trigger phrase on each final result
-              if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
-                console.log('Dylan trigger detected');
-                setIsProcessing(true);
-                handleTrigger(transcript, [...localHistory]);
+              // Fact-checker mode: automatically check all statements
+              if (dylanProfileRef.current.role === 'fact_checker') {
+                if (!isProcessing) {
+                  console.log('Fact-checker mode: auto-checking statement');
+                  setIsProcessing(true);
+                  handleFactCheck(transcript, [...localHistory]);
+                }
+              } else {
+                // Normal mode: wait for "Dylan" trigger
+                if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
+                  console.log('Dylan trigger detected');
+                  setIsProcessing(true);
+                  handleTrigger(transcript, [...localHistory]);
+                }
               }
             }
           }
@@ -254,11 +286,20 @@ const App = () => {
               console.log('Final transcript (desktop):', transcript);
               localHistory.push(`Usuario: ${transcript}`);
 
-              // Check for trigger phrase on each final result
-              if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
-                console.log('Dylan trigger detected');
-                setIsProcessing(true);
-                handleTrigger(transcript, [...localHistory]);
+              // Fact-checker mode: automatically check all statements
+              if (dylanProfileRef.current.role === 'fact_checker') {
+                if (!isProcessing) {
+                  console.log('Fact-checker mode: auto-checking statement');
+                  setIsProcessing(true);
+                  handleFactCheck(transcript, [...localHistory]);
+                }
+              } else {
+                // Normal mode: wait for "Dylan" trigger
+                if (!isProcessing && transcript.toLowerCase().includes('dylan')) {
+                  console.log('Dylan trigger detected');
+                  setIsProcessing(true);
+                  handleTrigger(transcript, [...localHistory]);
+                }
               }
               processedResultsRef.current++;
             }
@@ -416,6 +457,66 @@ const App = () => {
     } catch (error) {
       console.error('Error calling backend:', error);
       alert('No se pudo obtener la respuesta.');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleFactCheck = async (transcript, history) => {
+    try {
+      console.log('Fact-checking transcript:', transcript);
+      const res = await axios.post('https://dylan-backend.onrender.com/fact_check', {
+        conversation_history: history,
+        dylan_profile: dylanProfileRef.current,
+      });
+
+      const { needs_correction, response } = res.data;
+      
+      if (needs_correction && response) {
+        console.log('Correction needed, Dylan intervening:', response);
+        const newHistory = [...history, `Dylan: ${response}`];
+        setConversationHistory(newHistory);
+        historyRef.current = newHistory;
+
+        if (voiceEnabledRef.current) {
+          console.log('Speaking correction...');
+          const wasRecording = shouldBeRecordingRef.current;
+          if (recognition && isRecording) {
+            recognition.stop();
+          }
+          setIsSpeaking(true);
+          isSpeakingRef.current = true;
+          
+          speakText(response, () => {
+            console.log('Correction speech completed');
+            setIsSpeaking(false);
+            isSpeakingRef.current = false;
+            setIsProcessing(false);
+            
+            isIgnoringResultsRef.current = true;
+            setTimeout(() => {
+              isIgnoringResultsRef.current = false;
+            }, 1000);
+            
+            if (recognition && wasRecording) {
+              setTimeout(() => {
+                try {
+                  recognition.start();
+                  console.log('Recording restarted after correction');
+                } catch (e) {
+                  console.error('Error restarting recording:', e);
+                }
+              }, 1500);
+            }
+          });
+        } else {
+          setIsProcessing(false);
+        }
+      } else {
+        console.log('No correction needed');
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      console.error('Error in fact-check:', error);
       setIsProcessing(false);
     }
   };
@@ -600,22 +701,39 @@ const App = () => {
                 label={t.whoIsDylan}
                 options={[
                   { value: 'moderador', label: t.roles.moderador.label, description: t.roles.moderador.desc },
-                  { value: 'general', label: t.roles.general.label, description: t.roles.general.desc }
+                  { value: 'general', label: t.roles.general.label, description: t.roles.general.desc },
+                  { value: 'fact_checker', label: t.roles.fact_checker.label, description: t.roles.fact_checker.desc }
                 ]}
                 selectedValue={dylanProfile.role}
                 onSelect={(value) => updateDylanProfile({ ...dylanProfile, role: value })}
               />
 
-              <ProfileOption
-                icon="flag-outline"
-                label={t.roleInConversation}
-                options={[
-                  { value: 'mediar', label: t.responsibilities.mediar.label, description: t.responsibilities.mediar.desc },
-                  { value: 'analizar', label: t.responsibilities.analizar.label, description: t.responsibilities.analizar.desc }
-                ]}
-                selectedValue={dylanProfile.responsibility}
-                onSelect={(value) => updateDylanProfile({ ...dylanProfile, responsibility: value })}
-              />
+              {dylanProfile.role === 'fact_checker' && (
+                <ProfileOption
+                  icon="speedometer-outline"
+                  label={t.sensitivityLabel}
+                  options={[
+                    { value: 'high', label: t.sensitivities.high.label, description: t.sensitivities.high.desc },
+                    { value: 'medium', label: t.sensitivities.medium.label, description: t.sensitivities.medium.desc },
+                    { value: 'low', label: t.sensitivities.low.label, description: t.sensitivities.low.desc }
+                  ]}
+                  selectedValue={dylanProfile.sensitivity}
+                  onSelect={(value) => updateDylanProfile({ ...dylanProfile, sensitivity: value })}
+                />
+              )}
+
+              {dylanProfile.role !== 'fact_checker' && (
+                <ProfileOption
+                  icon="flag-outline"
+                  label={t.roleInConversation}
+                  options={[
+                    { value: 'mediar', label: t.responsibilities.mediar.label, description: t.responsibilities.mediar.desc },
+                    { value: 'analizar', label: t.responsibilities.analizar.label, description: t.responsibilities.analizar.desc }
+                  ]}
+                  selectedValue={dylanProfile.responsibility}
+                  onSelect={(value) => updateDylanProfile({ ...dylanProfile, responsibility: value })}
+                />
+              )}
 
               <ProfileOption
                 icon="heart-outline"
