@@ -423,11 +423,15 @@ const App = () => {
   const speakText = (text, callback) => {
     console.log('Speaking text:', text);
     console.log('Voice enabled ref:', voiceEnabledRef.current);
+    console.log('Language for TTS:', dylanProfileRef.current.language);
+    
+    // Get the correct language code for TTS
+    const ttsLanguage = languageCodeMap[dylanProfileRef.current.language] || 'es-ES';
     
     // Use Web Speech API for browser
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-ES';
+      utterance.lang = ttsLanguage;
       utterance.rate = 0.9;
       utterance.pitch = 1.0;
       
@@ -445,7 +449,7 @@ const App = () => {
     } else {
       // Fallback to expo-speech for mobile
       Speech.speak(text, {
-        language: 'es-ES',
+        language: ttsLanguage,
         pitch: 1.0,
         rate: 0.9,
         onDone: () => {
